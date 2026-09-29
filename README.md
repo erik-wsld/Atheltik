@@ -2,68 +2,60 @@
 
 Kleine Web-App (PWA) für den Handball-Athletikplan: Einheiten A/B mit Warm-up und Cool-down, Abhaken von Sätzen, Timer mit Ansagen, Anleitungen und Videos, Verlauf und Planung der nächsten Einheit.
 
-- Kein Server, keine Datenbank, kein Build-Schritt: reine HTML/CSS/JS-Dateien im Ordner `public/`
-- Funktioniert offline und lässt sich wie eine App auf dem Handy installieren
-- Die Daten liegen **nur auf deinem Gerät** (Browser-Speicher). Backups machst du unter *Einstellungen → Backup exportieren*.
+**App öffnen:** https://erik-wsld.github.io/Athletik/
 
-## Lokal starten
+- Kein Server, keine Datenbank, kein Build-Schritt: reine HTML/CSS/JS-Dateien
+- Funktioniert offline und lässt sich wie eine App auf dem Handy installieren
+- Veröffentlicht über GitHub Pages, das ist kostenlos
+- Die Trainingsdaten liegen **nur auf deinem Gerät** und nicht in diesem Repo
+
+## Auf dem iPhone installieren
+
+1. https://erik-wsld.github.io/Athletik/ in **Safari** öffnen.
+2. Teilen-Symbol → **Zum Home-Bildschirm**.
+3. Ab jetzt nur noch über das App-Symbol trainieren.
+
+Warum das wichtig ist:
+
+- Normale Safari-Tabs löschen Website-Daten nach 7 Tagen ohne Nutzung. Für die App vom Home-Bildschirm gilt diese Regel nicht.
+- Die App vom Home-Bildschirm hat einen **eigenen Speicher**. Safari-Tab und App teilen ihre Daten nicht.
+- Wenn du das App-Symbol löschst, werden auch die Trainingsdaten gelöscht.
+- Unter *Einstellungen → Daten auf diesem Gerät* zeigt die App an, ob sie installiert läuft und wann das letzte Backup war.
+
+## Backups
+
+*Einstellungen → Backup exportieren* → **In Dateien sichern**, am besten in den iCloud Drive. Über *Backup importieren* holst du die Daten zurück, auch auf ein neues Gerät. Nach 30 Tagen ohne Backup erinnert dich die App.
+
+## Updates veröffentlichen
+
+1. In `sw.js` die `VERSION` erhöhen (z. B. `'v3'` → `'v4'`), damit installierte Apps die neue Version laden.
+2. Auf GitHub: **Add file → Upload files** → die geänderten Dateien hineinziehen. Gleichnamige Dateien werden ersetzt. Danach **Commit changes**.
+3. 1–2 Minuten warten, bis unter **Actions** „pages build and deployment“ einen grünen Haken hat.
+4. Auf dem iPhone die App ein- bis zweimal komplett schließen und neu öffnen. Unten in den Einstellungen steht die aktuelle Version.
+
+Die Trainingsdaten bleiben bei Updates erhalten.
+
+> **Achtung beim Umbenennen des Repos:** Der Repo-Name ist Teil der Adresse. Nach einer Umbenennung funktioniert das alte App-Symbol nicht mehr. Deshalb vorher ein Backup exportieren, danach die App neu zum Home-Bildschirm hinzufügen und das Backup importieren.
+
+## Lokal testen
+
+Im Ordner mit den Dateien:
 
 ```bash
-python3 -m http.server 8765 --directory public
+python3 -m http.server 8765
 ```
 
 Dann http://localhost:8765 öffnen.
-
-## Kostenlos veröffentlichen, nur für dich (Cloudflare Pages + Cloudflare Access)
-
-Ergebnis: Du hast eine Adresse wie `https://athletik-deinname.pages.dev`. Beim ersten Aufruf fragt Cloudflare nach deiner E-Mail-Adresse und schickt dir einen Einmal-Code. Nur deine Adresse ist freigeschaltet. Beides ist im Free-Plan kostenlos.
-
-### 1. App hochladen (Cloudflare Pages)
-
-1. Kostenloses Konto auf https://dash.cloudflare.com anlegen.
-2. Links **Workers & Pages** → **Create** → Reiter **Pages** → **Upload assets** (Drag & Drop).
-3. Projektnamen wählen, z. B. `athletik-deinname` (wird Teil der URL).
-4. Den Ordner **`public`** hineinziehen → **Deploy site**.
-5. Die App ist jetzt unter `https://athletik-deinname.pages.dev` erreichbar – noch ohne Schutz.
-
-### 2. Zugang auf dich beschränken (Cloudflare Access)
-
-1. Im Dashboard links **Zero Trust** öffnen. Beim ersten Mal einen Teamnamen vergeben und den **Free-Plan** wählen (bis 50 Nutzer, 0 €; eventuell will Cloudflare trotzdem eine Zahlungsmethode hinterlegt haben).
-2. **Access → Applications → Add an application → Self-hosted**.
-3. Einstellungen:
-   - **Application name:** Athletik
-   - **Session duration:** z. B. *1 month* (dann musst du dich nur einmal im Monat neu anmelden)
-   - **Domain:** `athletik-deinname.pages.dev`
-     (optional zusätzlich `*.athletik-deinname.pages.dev`, damit auch Vorschau-URLs geschützt sind)
-4. **Policy** anlegen: Action **Allow**, Regel **Include → Emails →** deine E-Mail-Adresse.
-5. Als Login-Methode **One-time PIN** aktiviert lassen (Standard) → speichern.
-6. Test: URL in einem privaten Browserfenster öffnen. Es muss die Cloudflare-Anmeldung kommen, danach die App.
-
-### 3. Auf dem Handy installieren
-
-- **iPhone (Safari):** URL öffnen, anmelden → Teilen-Symbol → **Zum Home-Bildschirm**.
-- **Android (Chrome):** URL öffnen, anmelden → Menü ⋮ → **App installieren**.
-
-Tipp fürs iPhone: Nutze immer die App vom Home-Bildschirm. Sie hat einen eigenen Speicher, der nicht wie bei normalen Safari-Seiten nach 7 Tagen ohne Nutzung gelöscht wird. Safari und Home-Bildschirm-App teilen ihre Daten nicht.
-
-### 4. Updates veröffentlichen
-
-1. In `public/sw.js` die `VERSION` erhöhen (z. B. `'v2'`), damit installierte Apps die neue Version laden.
-2. In Cloudflare: Projekt öffnen → **Create deployment** → `public`-Ordner erneut hochladen.
-
-Deine Trainingsdaten bleiben dabei erhalten, sie liegen ja auf dem Gerät.
-
-### Alternativen
-
-- **GitHub Pages:** kostenlos, aber öffentlich (kein Passwortschutz). Die URL kennt allerdings niemand, und die App enthält keine persönlichen Daten.
-- **Netlify / Vercel:** Der Passwortschutz ist dort nur in kostenpflichtigen Plänen enthalten.
-- **Eigene Domain:** In Cloudflare Pages unter *Custom domains* verknüpfbar. Die Domain selbst kostet ca. 10 € im Jahr.
 
 ## Dateien
 
 | Datei | Inhalt |
 |---|---|
-| `public/data.js` | Trainingsplan: Übungen, Vorgaben, Anleitungen, Progression |
-| `public/app.js` | App-Logik: Tracking, Timer, Verlauf, Planung |
-| `public/styles.css` | Design (hell/dunkel automatisch) |
-| `public/sw.js` | Offline-Cache |
+| `index.html` | Grundgerüst der Seite |
+| `data.js` | Trainingsplan: Übungen, Vorgaben, Anleitungen, Progression |
+| `app.js` | App-Logik: Tracking, Timer, Videos, Verlauf, Planung |
+| `styles.css` | Design (hell/dunkel automatisch) |
+| `sw.js` | Offline-Cache und Versionsnummer |
+| `manifest.webmanifest`, `icon*.png`, `icon.svg`, `apple-touch-icon.png` | App-Name und Symbole für den Home-Bildschirm |
+
+Den Trainingsplan änderst du in `data.js`. Jede Übung hat dort Name, Sätze, Wiederholungen bzw. Zeit, Anleitungsschritte und einen YouTube-Suchbegriff.
