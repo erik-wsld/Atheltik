@@ -1,6 +1,6 @@
 // Offline-Cache: App-Dateien werden beim ersten Aufruf gespeichert.
 // Nach Änderungen an der App VERSION erhöhen, damit Geräte die neue Version laden.
-const VERSION = 'v1';
+const VERSION = 'v3';
 const CACHE = `athletik-${VERSION}`;
 const FILES = ['./', 'index.html', 'styles.css', 'data.js', 'app.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'apple-touch-icon.png'];
 

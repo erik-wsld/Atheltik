@@ -19,10 +19,11 @@ const ui = { open: null, scrollTo: null, rpe: null };
 
 function defaults() {
   return {
-    settings: { days: [1, 4], startDate: null, gameDate: null, sound: true, voice: true },
+    settings: { days: [1, 4], startDate: null, gameDate: null, sound: true, voice: true, lastBackup: null },
     history: [],
     active: null,
     videos: {},
+    videoLandscape: {}, // Übungen, deren Video quer statt hochkant angezeigt wird
   };
 }
 
@@ -36,7 +37,7 @@ function load() {
 
 function normalize(s) {
   const d = defaults();
-  return { ...d, ...s, settings: { ...d.settings, ...(s.settings || {}) }, history: s.history || [], videos: s.videos || {} };
+  return { ...d, ...s, settings: { ...d.settings, ...(s.settings || {}) }, history: s.history || [], videos: s.videos || {}, videoLandscape: s.videoLandscape || {} };
 }
 
 let state = load();
@@ -44,6 +45,22 @@ let state = load();
 function save() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
   catch (e) { toast('Speichern nicht möglich – privater Modus oder Speicher voll?'); }
+}
+
+// Als Home-Bildschirm-App gestartet? Nur dann löscht iOS die Daten nicht nach 7 Tagen ohne Nutzung.
+const isStandalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isMobile = () => navigator.maxTouchPoints > 0;
+const storageInfo = { persisted: null };
+
+function backupDue() {
+  if (!state.history.length) return false;
+  const last = state.settings.lastBackup;
+  return !last || Date.now() - last > 30 * DAY;
+}
+
+function installHint() {
+  if (isStandalone() || !isMobile()) return '';
+  return `<p class="note warn">${ICONS.warn}<span><b>Noch nicht installiert:</b> Öffne das Teilen-Menü und wähle „Zum Home-Bildschirm“. Trainiere danach nur noch über das App-Symbol, sonst kann iOS deine Daten nach 7 Tagen ohne Nutzung löschen.</span></p>`;
 }
 
 // ---------- Datum ----------
@@ -404,7 +421,9 @@ function viewHome() {
     <header class="page-head">
       <p class="eyebrow">${fmtDayLong(new Date())}</p>
       <h1>Handball Athletik</h1>
-    </header>`;
+    </header>
+    ${installHint()}
+    ${backupDue() ? `<p class="note">${ICONS.info}<span>Zeit für ein Backup: <a href="#/settings">Einstellungen → Backup exportieren</a></span></p>` : ''}`;
 
   if (a) {
     const { done, total } = progressOf(a.log);
@@ -646,15 +665,22 @@ function viewSettings() {
     </section>
 
     <section class="card">
-      <h3>Daten</h3>
+      <h3>Daten auf diesem Gerät</h3>
       <p class="muted small">Alle Daten liegen nur auf diesem Gerät im Browser. Exportiere ab und zu ein Backup – damit kannst du auch auf ein anderes Gerät umziehen.</p>
+      <ul class="status">
+        <li class="${isStandalone() ? 'ok' : 'bad'}">${isStandalone() ? 'Läuft als installierte App' : 'Läuft im Browser, nicht als installierte App'}</li>
+        ${storageInfo.persisted == null ? '' : `<li class="${storageInfo.persisted ? 'ok' : 'bad'}">${storageInfo.persisted ? 'Dauerhafter Speicher aktiv' : 'Speicher nicht als dauerhaft markiert'}</li>`}
+        <li class="${backupDue() ? 'bad' : 'ok'}">${state.settings.lastBackup ? `Letztes Backup: ${fmtDay(state.settings.lastBackup)}` : 'Noch kein Backup exportiert'}</li>
+        <li class="ok">${state.history.length} Einheiten gespeichert</li>
+      </ul>
+      ${installHint()}
       <div class="btn-row">
         <button class="btn ghost" data-action="export">Backup exportieren</button>
         <label class="btn ghost">Backup importieren<input type="file" accept="application/json,.json" data-import hidden></label>
       </div>
       <button class="btn link danger" data-action="reset">Alle Daten löschen</button>
     </section>
-    <p class="muted small center">Handball Athletik · Offline-fähig · v1</p>`;
+    <p class="muted small center">Handball Athletik · Offline-fähig · v3</p>`;
 }
 
 // ---------- Modals ----------
@@ -688,7 +714,7 @@ function openInfo(id) {
     <p class="eyebrow">${sec.subtitle ? `${sec.title} · ${sec.subtitle}` : sec.title}</p>
     <h2>${ex.name}</h2>
     <p class="rx">${rxText(ex, phase)}</p>
-    ${vid ? `<div class="video"><iframe src="https://www.youtube-nocookie.com/embed/${vid}?rel=0&playsinline=1" title="Video: ${esc(ex.name)}" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe></div>` : ''}
+    ${vid ? videoEmbed(id, vid, ex.name) : ''}
     <p>${ex.why}</p>
     <h3>So geht’s</h3>
     <ol class="steps">${ex.steps.map(s => `<li>${s}</li>`).join('')}</ol>
@@ -703,6 +729,16 @@ function openInfo(id) {
     </div>
     <p class="muted small">Hast du ein gutes Video gefunden? Link einfügen – es erscheint dann direkt hier in der Anleitung.</p>
     ${vid ? `<button class="btn link danger" data-action="video-remove" data-ex="${id}">Video entfernen</button>` : ''}`);
+}
+
+function videoEmbed(id, vid, name) {
+  const landscape = !!state.videoLandscape[id];
+  const opt = (val, label) => `<button data-action="video-orient" data-ex="${id}" data-o="${val}" aria-pressed="${(val === 'landscape') === landscape}">${label}</button>`;
+  return `
+    <div class="video ${landscape ? 'landscape' : 'portrait'}">
+      <div class="video-ratio"><iframe src="https://www.youtube-nocookie.com/embed/${vid}?rel=0&playsinline=1" title="Video: ${esc(name)}" allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen loading="lazy"></iframe></div>
+    </div>
+    <div class="segmented" role="group" aria-label="Videoformat">${opt('portrait', '▯ Hochkant')}${opt('landscape', '▭ Quer')}</div>`;
 }
 
 function openFinish() {
@@ -822,7 +858,17 @@ const actions = {
     save(); openInfo(d.ex); render();
     toast(url ? 'Video gespeichert' : 'Video entfernt');
   },
-  'video-remove': d => { delete state.videos[d.ex]; save(); openInfo(d.ex); render(); },
+  'video-remove': d => { delete state.videos[d.ex]; delete state.videoLandscape[d.ex]; save(); openInfo(d.ex); render(); },
+  'video-orient': (d, el) => {
+    const landscape = d.o === 'landscape';
+    if (landscape) state.videoLandscape[d.ex] = true; else delete state.videoLandscape[d.ex];
+    save();
+    // Direkt im offenen Fenster umschalten, ohne dass das Video neu lädt oder die Ansicht nach oben springt
+    const box = modalEl.querySelector('.video');
+    box.classList.toggle('landscape', landscape);
+    box.classList.toggle('portrait', !landscape);
+    el.parentElement.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b === el));
+  },
   'hist-add': () => openManualAdd(),
   'hist-add-save': () => {
     const date = $('#m-date').value;
@@ -858,13 +904,18 @@ const actions = {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
     try {
       const file = new File([blob], name, { type: 'application/json' });
-      if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], title: 'Athletik-Backup' }); return; }
+      if (navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Athletik-Backup' });
+        markBackup();
+        return;
+      }
     } catch (e) { if (e.name === 'AbortError') return; }
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
     a.download = name;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    markBackup();
   },
   'reset': () => {
     if (!confirm('Wirklich ALLE Daten (Verlauf, Einstellungen, Videos) löschen?')) return;
@@ -962,6 +1013,11 @@ setInterval(() => {
   document.querySelectorAll('[data-elapsed]').forEach(el => { el.textContent = t; });
 }, 1000);
 
+function markBackup() {
+  state.settings.lastBackup = Date.now();
+  save(); render();
+}
+
 let toastTimer = null;
 function toast(msg) {
   const el = $('#toast');
@@ -980,4 +1036,6 @@ render();
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
   navigator.serviceWorker.register('sw.js').catch(() => {});
 }
-navigator.storage?.persist?.().catch(() => {});
+navigator.storage?.persist?.()
+  .then(granted => { storageInfo.persisted = granted; if (route() === 'settings') render(); })
+  .catch(() => {});
